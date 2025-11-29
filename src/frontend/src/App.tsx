@@ -9,7 +9,7 @@ export default function App() {
   // Log authentication state to console
   useEffect(() => {
     console.log('═══════════════════════════════════════════════════');
-    console.log('🔐 [Mentra Auth] Authentication State Update');
+    console.log('🔐 [Clairify Auth] Authentication State Update');
     console.log('═══════════════════════════════════════════════════');
     console.log('👤 User ID:', userId || 'Not authenticated');
     console.log('🔄 Loading:', isLoading);
@@ -77,9 +77,9 @@ export default function App() {
   // Handle loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900">
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#0a1929' }}>
         <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2" style={{ borderColor: '#06b6d4' }}></div>
           <p className="text-gray-400">Loading authentication...</p>
         </div>
       </div>
@@ -89,12 +89,12 @@ export default function App() {
   // Handle error state
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900">
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#0a1929' }}>
         <div className="text-center p-8">
           <h2 className="text-red-500 text-2xl font-semibold mb-4">Authentication Error</h2>
           <p className="text-red-400 font-medium mb-2">{error}</p>
           <p className="text-gray-400 text-sm">
-            Please ensure you are opening this page from the MentraOS app.
+            Please ensure you are opening this page from the Clairify app.
           </p>
         </div>
       </div>
@@ -129,19 +129,24 @@ export default function App() {
       <header className="relative bg-transparent backdrop-blur-xl sticky top-0 z-50">
         <div className="relative px-6 py-3 flex items-center justify-between">
           {/* Logo */}
-          <div className="flex items-center gap-2">
-            <svg width="32" height="17" viewBox="0 0 726 387" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect y="215" width="172" height="172" fill="#36C07D"/>
-              <path d="M136 0L446 215V387L136 172V0Z" fill="#36C07D"/>
-              <path d="M416 0L726 215V387L416 172V0Z" fill="#36C07D"/>
-            </svg>
-            <span className="font-bold text-lg" style={{ color: isDark ? '#f1f5f9' : 'var(--accent-emerald)' }}>Mentra</span>
+          <div className="flex items-center gap-3">
+            <img 
+              src="/assets/icons/clairify.png" 
+              alt="Clairify" 
+              className="w-10 h-10 object-contain"
+            />
+            <span className="font-bold text-xl" style={{ color: isDark ? '#06b6d4' : '#0891b2' }}>
+              Clair<span style={{ color: '#06b6d4' }}>i</span>fy
+            </span>
           </div>
 
           {/* User Info */}
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-            <span className="text-xs text-emerald-400 font-mono">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ 
+            background: 'rgba(6, 182, 212, 0.1)',
+            border: '1px solid rgba(6, 182, 212, 0.2)'
+          }}>
+            <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: '#06b6d4' }}></div>
+            <span className="text-xs font-mono" style={{ color: '#06b6d4' }}>
               {userId?.substring(0, 8)}...
             </span>
           </div>

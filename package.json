@@ -1,5 +1,5 @@
 {
-  "name": "mentraos-photo-taker-example-app",
+  "name": "clairify-camera-app",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
@@ -14,7 +14,7 @@
   },
   "author": "Aryan Farhang",
   "license": "ISC",
-  "description": "Example app for taking photos with MentraOS",
+  "description": "Clairify - AI-powered medical documentation with camera and transcription",
   "dependencies": {
     "@mentra/react": "^2.0.2",
     "@mentra/sdk": "2.1.28",

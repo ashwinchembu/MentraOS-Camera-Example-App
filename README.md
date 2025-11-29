@@ -1,19 +1,20 @@
-# MentraOS-Camera-Example-App
+# Clairify - AI-Powered Medical Documentation
 
-This is a simple example app which demonstrates how to use the MentraOS Camera API to take photos and display them in a webview.
+Clairify is an intelligent medical documentation app for MentraOS smart glasses that combines camera capture, real-time transcription, and AI-powered summarization to streamline clinical workflows.
 
-You could also send the photo to an AI api, store it in a database or cloud storage, send it to Roboflow, or do other processing.
+## ✨ Features
 
-## ✨ New Features
+- **📸 Photo Stream**: Capture images during medical appointments with smart glasses
+- **🎤 Real-time Transcription**: Live audio transcription during consultations
+- **🤖 AI Summarization**: GPT-powered analysis and summary generation
+- **📧 Email Integration**: Send prescriptions and medical reports directly to patients
+- **🌓 Modern UI**: Beautiful, responsive interface with dark/light mode
 
-### Transcription Recording & GPT-5 Summarization
-This app now includes advanced transcription features:
-- **Record Transcriptions**: Start/stop recording to accumulate all spoken text
-- **GPT-5 Summarization**: Generate intelligent summaries of your transcriptions
-- **Manage Transcriptions**: Clear and reset your transcription history
-- **Real-time Display**: See transcriptions appear in real-time while recording
-
-See [TRANSCRIPTION_FEATURES.md](./TRANSCRIPTION_FEATURES.md) for detailed documentation.
+### Core Capabilities
+- **Record Transcriptions**: Start/stop recording to capture all spoken text during appointments
+- **GPT-5 Summarization**: Generate professional medical summaries with structured sections
+- **Email Delivery**: Send formatted prescriptions and reports to patient emails
+- **Real-time Display**: See transcriptions and photos appear live during consultations
 
 ### Install MentraOS on your phone
 
@@ -45,7 +46,7 @@ MentraOS install links: [mentra.glass/install](https://mentra.glass/install)
 
 1. Make sure you have [Node.js](https://nodejs.org/) installed (v18 or higher recommended)
 
-2. Clone this repo locally: `git clone https://github.com/Mentra-Community/MentraOS-Camera-Example-App`
+2. Clone or download this repository locally
 
 3. cd into your repo, then type `npm install`
 
@@ -54,13 +55,17 @@ MentraOS install links: [mentra.glass/install](https://mentra.glass/install)
    * Edit the `.env` file with your app details:
      ```
      PORT=3000
-     PACKAGE_NAME=com.yourName.yourAppName
+     PACKAGE_NAME=com.yourName.clairify
      MENTRAOS_API_KEY=your_api_key_from_console
      OPENAI_API_KEY=your_openai_api_key_here
+     RESEND_API_KEY=your_resend_api_key_here
+     RESEND_FROM_EMAIL=your_verified_sender_email
      ```
    * Make sure the `PACKAGE_NAME` matches what you registered in the MentraOS Console
    * Get your `MENTRAOS_API_KEY` from the MentraOS Developer Console
-   * Get your `OPENAI_API_KEY` from [OpenAI Platform](https://platform.openai.com/) (required for transcription summarization)
+   * Get your `OPENAI_API_KEY` from [OpenAI Platform](https://platform.openai.com/) (required for AI summarization)
+   * Get your `RESEND_API_KEY` from [Resend](https://resend.com/) (required for email functionality)
+   * Set `RESEND_FROM_EMAIL` to a verified sender email address in your Resend account
 
 6. Run your app with `npm run dev`
 
