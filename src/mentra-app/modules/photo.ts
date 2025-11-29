@@ -31,9 +31,18 @@ export async function takePhoto(
   logger: any,
   photosMap: Map<string, StoredPhoto>
 ): Promise<void> {
-  try {
-    const photo = await session.camera.requestPhoto();
-    logger.info(`Photo taken for user ${userId}, timestamp: ${photo.timestamp}`);
+  const MAX_RETRIES = 2;
+  let lastError: any = null;
+
+  // Try taking photo with retries
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      logger.info(`Requesting photo for user ${userId} (attempt ${attempt}/${MAX_RETRIES})...`);
+      console.log(`📸 Photo request attempt ${attempt}/${MAX_RETRIES} for user ${userId}`);
+      
+      // Use "small" size for faster capture/transfer (helps avoid timeouts)
+      const photo = await session.camera.requestPhoto({ size: 'small' });
+      logger.info(`Photo taken for user ${userId}, timestamp: ${photo.timestamp}`);
 
     // Store the photo in the map for API access
     const storedPhoto: StoredPhoto = {
@@ -53,24 +62,43 @@ export async function takePhoto(
     // Broadcast to all SSE clients
     broadcastPhotoToClients(storedPhoto);
 
-    // Console log the base64 image
-    const base64Data = photo.buffer.toString('base64');
+    // Log photo capture info
     console.log('\n========================================');
-    console.log('📸 BASE64 IMAGE DATA');
+    console.log('📸 PHOTO CAPTURED');
     console.log('========================================');
     console.log(`Request ID: ${photo.requestId}`);
     console.log(`MIME Type: ${photo.mimeType}`);
     console.log(`File Size: ${photo.size} bytes`);
     console.log(`Timestamp: ${photo.timestamp}`);
-    console.log('\n🖼️  Data URL (use this in <img> tag):');
-    console.log(`data:${photo.mimeType};base64,${base64Data.substring(0, 100)}...`);
-    console.log('\n📋 Full Base64 String (first 500 chars):');
-    console.log(base64Data.substring(0, 500) + '...');
-    console.log('\n📋 Full Base64 String (complete):');
-    console.log(base64Data);
+    console.log('✅ Photo will be analyzed with transcription when summary is generated');
     console.log('========================================\n');
 
-  } catch (error) {
-    logger.error(`Error taking photo: ${error}`);
+      // Success - exit the retry loop
+      return;
+
+    } catch (error: any) {
+      lastError = error;
+      const isTimeout = error.message?.includes('timeout') || error.message?.includes('timed out');
+      
+      if (isTimeout && attempt < MAX_RETRIES) {
+        logger.warn(`Photo request timeout on attempt ${attempt}, retrying...`);
+        console.log(`⏱️  Timeout on attempt ${attempt}/${MAX_RETRIES}, waiting before retry...`);
+        // Wait a bit before retrying (500ms)
+        await new Promise(resolve => setTimeout(resolve, 500));
+        continue;
+      }
+      
+      // If it's the last attempt or not a timeout error, throw
+      if (attempt === MAX_RETRIES) {
+        logger.error(`Error taking photo after ${MAX_RETRIES} attempts: ${error}`);
+        console.error(`❌ Photo capture failed after ${MAX_RETRIES} attempts:`, error.message);
+        throw error;
+      }
+    }
+  }
+  
+  // If we get here, all retries failed
+  if (lastError) {
+    throw lastError;
   }
 }

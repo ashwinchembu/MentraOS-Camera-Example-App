@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Camera, Play, Mic, Image, Zap, Terminal, Moon, Sun, Square, Sparkles, Trash2 } from 'lucide-react';
+import { Camera, Play, Mic, Image, Zap, Terminal, Moon, Sun, Square, Sparkles, Trash2, Mail, Send } from 'lucide-react';
 
 interface Photo {
   id: string;
@@ -37,6 +37,10 @@ export default function Template({ isDark, setIsDark, userId }: TemplateProps) {
   const [recordedCount, setRecordedCount] = useState(0);
   const [summary, setSummary] = useState<string>('');
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  const [prescriptionEmail, setPrescriptionEmail] = useState('');
+  const [reportEmail, setReportEmail] = useState('');
+  const [isSendingPrescription, setIsSendingPrescription] = useState(false);
+  const [isSendingReport, setIsSendingReport] = useState(false);
   const logIdCounter = useRef(Date.now());
 
   const addLog = useCallback((message: string) => {
@@ -404,6 +408,90 @@ export default function Template({ isDark, setIsDark, userId }: TemplateProps) {
     }
   };
 
+  const handleSendPrescription = async () => {
+    if (!prescriptionEmail.trim() || !prescriptionEmail.includes('@')) {
+      addLog('Please enter a valid email address');
+      return;
+    }
+
+    if (!summary || summary.trim().length === 0) {
+      addLog('Please generate a summary first');
+      return;
+    }
+
+    try {
+      setIsSendingPrescription(true);
+      addLog(`Sending prescription to ${prescriptionEmail}...`);
+
+      const response = await fetch('/api/email/prescription', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          userId, 
+          email: prescriptionEmail, 
+          summary 
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        addLog(`Prescription sent to ${prescriptionEmail}`);
+        setPrescriptionEmail('');
+      } else {
+        addLog(`Error: ${data.error}`);
+      }
+    } catch (error) {
+      addLog(`Failed to send prescription: ${error}`);
+    } finally {
+      setIsSendingPrescription(false);
+    }
+  };
+
+  const handleSendReport = async () => {
+    if (!reportEmail.trim() || !reportEmail.includes('@')) {
+      addLog('Please enter a valid email address');
+      return;
+    }
+
+    if (!summary || summary.trim().length === 0) {
+      addLog('Please generate a summary first');
+      return;
+    }
+
+    try {
+      setIsSendingReport(true);
+      addLog(`Sending report to ${reportEmail}...`);
+
+      const response = await fetch('/api/email/report', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          userId, 
+          email: reportEmail, 
+          summary 
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        addLog(`Report sent to ${reportEmail}`);
+        setReportEmail('');
+      } else {
+        addLog(`Error: ${data.error}`);
+      }
+    } catch (error) {
+      addLog(`Failed to send report: ${error}`);
+    } finally {
+      setIsSendingReport(false);
+    }
+  };
+
   // Poll for recording status
   useEffect(() => {
     const pollStatus = async () => {
@@ -678,7 +766,7 @@ export default function Template({ isDark, setIsDark, userId }: TemplateProps) {
 
         {/* Summary Display */}
         {summary && (
-          <div className="relative px-4 pb-4">
+          <div className="relative px-4 pb-4 space-y-4">
             <div className="p-4 rounded-lg" style={{ background: 'var(--bg-input)' }}>
               <div className="flex items-center gap-2 mb-2">
                 <Sparkles className="w-4 h-4" style={{ color: 'var(--accent-purple)' }} />
@@ -686,6 +774,92 @@ export default function Template({ isDark, setIsDark, userId }: TemplateProps) {
               </div>
               <div className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--text-primary)' }}>
                 {summary}
+              </div>
+            </div>
+
+            {/* Email Prescription */}
+            <div className="p-4 rounded-lg" style={{ background: 'var(--bg-input)' }}>
+              <div className="flex items-center gap-2 mb-3">
+                <Mail className="w-4 h-4" style={{ color: 'var(--accent-cyan)' }} />
+                <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>Email Prescription</h3>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="email"
+                  value={prescriptionEmail}
+                  onChange={(e) => setPrescriptionEmail(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSendPrescription()}
+                  placeholder="patient@example.com"
+                  className="flex-1 px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 transition-all"
+                  style={{
+                    background: 'var(--bg-card)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border-secondary)'
+                  }}
+                />
+                <button
+                  onClick={handleSendPrescription}
+                  disabled={!prescriptionEmail.trim() || isSendingPrescription}
+                  className="px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap"
+                  style={{
+                    background: prescriptionEmail.trim() && !isSendingPrescription
+                      ? 'linear-gradient(to bottom right, var(--accent-cyan), var(--accent-emerald))'
+                      : 'var(--bg-card)',
+                    color: prescriptionEmail.trim() && !isSendingPrescription
+                      ? 'white'
+                      : 'var(--text-muted)',
+                    cursor: !prescriptionEmail.trim() || isSendingPrescription ? 'not-allowed' : 'pointer',
+                    opacity: isSendingPrescription ? 0.7 : 1
+                  }}
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <Send className={`w-4 h-4 ${isSendingPrescription ? 'animate-pulse' : ''}`} />
+                    <span className="text-sm">{isSendingPrescription ? 'Sending...' : 'Send Prescription'}</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* Email Report */}
+            <div className="p-4 rounded-lg" style={{ background: 'var(--bg-input)' }}>
+              <div className="flex items-center gap-2 mb-3">
+                <Mail className="w-4 h-4" style={{ color: 'var(--accent-purple)' }} />
+                <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>Email Report</h3>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="email"
+                  value={reportEmail}
+                  onChange={(e) => setReportEmail(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSendReport()}
+                  placeholder="patient@example.com"
+                  className="flex-1 px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 transition-all"
+                  style={{
+                    background: 'var(--bg-card)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border-secondary)'
+                  }}
+                />
+                <button
+                  onClick={handleSendReport}
+                  disabled={!reportEmail.trim() || isSendingReport}
+                  className="px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap"
+                  style={{
+                    background: reportEmail.trim() && !isSendingReport
+                      ? 'linear-gradient(to bottom right, var(--accent-purple), var(--accent-rose))'
+                      : 'var(--bg-card)',
+                    color: reportEmail.trim() && !isSendingReport
+                      ? 'white'
+                      : 'var(--text-muted)',
+                    cursor: !reportEmail.trim() || isSendingReport ? 'not-allowed' : 'pointer',
+                    opacity: isSendingReport ? 0.7 : 1
+                  }}
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <Send className={`w-4 h-4 ${isSendingReport ? 'animate-pulse' : ''}`} />
+                    <span className="text-sm">{isSendingReport ? 'Sending...' : 'Send Report'}</span>
+                  </div>
+                </button>
               </div>
             </div>
           </div>

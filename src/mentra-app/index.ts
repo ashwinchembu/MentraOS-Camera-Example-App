@@ -24,7 +24,7 @@ import { takePhoto } from "./modules/photo";
 import { setupWebviewRoutes, broadcastTranscriptionToClients, registerSession, unregisterSession } from "./routes/routes";
 import { playAudio, speak } from "./modules/audio";
 import { setupTranscription } from "./modules/transcription";
-import { initializeUserTranscriptions, addTranscription, cleanupUserTranscriptions } from "./modules/transcription-storage";
+import { initializeUserTranscriptions, addTranscription, cleanupUserTranscriptions, isRecording } from "./modules/transcription-storage";
 import * as path from "path";
 
 interface StoredPhoto {
@@ -137,26 +137,34 @@ class ExampleMentraOSApp extends AppServer {
     // })
     // // await session.audio.speak('Hello from your app!');
 
-    // Set up transcription to log all speech-to-text
+    // Set up transcription to log all speech-to-text (listener is always active)
     setupTranscription(
       session,
       (finalText) => {
         // Called when transcription is finalized
-        this.logger.info(`[FINAL] Transcription for user ${userId}: ${finalText}`);
-        console.log(`✅ Final transcription (user ${userId}): ${finalText}`);
+        // Only process and broadcast if recording is active
+        if (isRecording(userId)) {
+          this.logger.info(`[FINAL] Transcription for user ${userId}: ${finalText}`);
+          console.log(`✅ Final transcription (user ${userId}): ${finalText}`);
 
-        // Store the final transcription
-        addTranscription(userId, finalText, true);
+          // Store the final transcription (addTranscription also checks isRecording)
+          addTranscription(userId, finalText, true);
 
-        // Broadcast final transcription to this user's SSE clients only
-        broadcastTranscriptionToClients(finalText, true, userId);
+          // Broadcast final transcription to this user's SSE clients only
+          broadcastTranscriptionToClients(finalText, true, userId);
+        } else {
+          console.log(`⏸️  Transcription received but not recording (user ${userId}): ${finalText}`);
+        }
       },
       (partialText) => {
         // Called for interim/partial results (optional)
-        console.log(`⏳ Partial transcription (user ${userId}): ${partialText}`);
+        // Only process and broadcast if recording is active
+        if (isRecording(userId)) {
+          console.log(`⏳ Partial transcription (user ${userId}): ${partialText}`);
 
-        // Broadcast partial transcription to this user's SSE clients only
-        broadcastTranscriptionToClients(partialText, false, userId);
+          // Broadcast partial transcription to this user's SSE clients only
+          broadcastTranscriptionToClients(partialText, false, userId);
+        }
       }
     );
 

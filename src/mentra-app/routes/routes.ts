@@ -34,6 +34,8 @@ import {
   getRecordingStatus
 } from '../modules/transcription-storage';
 import { summarizeWithGPT5 } from '../modules/gpt-summarizer';
+import { extractPrescription, extractReport } from '../modules/content-extractor';
+import { sendPrescriptionEmail, sendReportEmail } from '../modules/email-service';
 
 // Store SSE clients with userId mapping
 interface SSEClient {
@@ -588,7 +590,7 @@ export function setupWebviewRoutes(
     }
   });
 
-  // Route: Summarize transcriptions with GPT-5
+  // Route: Summarize transcriptions with GPT-5 (includes images)
   app.post('/api/transcription/summarize', async (req: any, res: any) => {
     try {
       const { userId } = req.body;
@@ -607,7 +609,22 @@ export function setupWebviewRoutes(
         return;
       }
 
-      const summary = await summarizeWithGPT5(combinedText);
+      // Get all photos for this user
+      const userPhotos: Array<{ base64: string; mimeType: string }> = [];
+      for (const [requestId, photo] of photosMap.entries()) {
+        if (photo.userId === userId) {
+          const base64Data = photo.buffer.toString('base64');
+          userPhotos.push({
+            base64: base64Data,
+            mimeType: photo.mimeType
+          });
+        }
+      }
+
+      console.log(`[Transcription] Including ${userPhotos.length} images in GPT-5 analysis`);
+
+      // Call GPT-5 with both transcription and images
+      const summary = await summarizeWithGPT5(combinedText, userPhotos);
       const status = getRecordingStatus(userId);
 
       res.json({
@@ -615,6 +632,7 @@ export function setupWebviewRoutes(
         userId,
         summary,
         transcriptionCount: status.transcriptionCount,
+        imageCount: userPhotos.length,
         originalLength: combinedText.length,
         summaryLength: summary.length
       });
@@ -644,6 +662,102 @@ export function setupWebviewRoutes(
       });
     } catch (error: any) {
       console.error('Error clearing transcriptions:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Route: Email Prescription
+  app.post('/api/email/prescription', async (req: any, res: any) => {
+    try {
+      const { userId, email, summary } = req.body;
+
+      if (!userId) {
+        res.status(400).json({ error: 'userId is required' });
+        return;
+      }
+
+      if (!email || !email.includes('@')) {
+        res.status(400).json({ error: 'Valid email address is required' });
+        return;
+      }
+
+      if (!summary || summary.trim().length === 0) {
+        res.status(400).json({ error: 'Summary is required. Please generate a summary first.' });
+        return;
+      }
+
+      console.log(`[Email] Extracting prescription for user ${userId} and sending to ${email}`);
+
+      // Extract prescription from summary
+      const prescription = await extractPrescription(summary);
+
+      // Send prescription email
+      const result = await sendPrescriptionEmail(email, prescription, userId);
+
+      if (result.success) {
+        res.json({
+          success: true,
+          message: 'Prescription email sent successfully',
+          messageId: result.messageId,
+          email,
+          userId
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: result.error || 'Failed to send email'
+        });
+      }
+    } catch (error: any) {
+      console.error('Error sending prescription email:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Route: Email Report
+  app.post('/api/email/report', async (req: any, res: any) => {
+    try {
+      const { userId, email, summary } = req.body;
+
+      if (!userId) {
+        res.status(400).json({ error: 'userId is required' });
+        return;
+      }
+
+      if (!email || !email.includes('@')) {
+        res.status(400).json({ error: 'Valid email address is required' });
+        return;
+      }
+
+      if (!summary || summary.trim().length === 0) {
+        res.status(400).json({ error: 'Summary is required. Please generate a summary first.' });
+        return;
+      }
+
+      console.log(`[Email] Extracting report for user ${userId} and sending to ${email}`);
+
+      // Extract report from summary
+      const report = await extractReport(summary);
+
+      // Send report email
+      const result = await sendReportEmail(email, report, userId);
+
+      if (result.success) {
+        res.json({
+          success: true,
+          message: 'Report email sent successfully',
+          messageId: result.messageId,
+          email,
+          userId
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: result.error || 'Failed to send email'
+        });
+      }
+    } catch (error: any) {
+      console.error('Error sending report email:', error);
       res.status(500).json({ error: error.message });
     }
   });
