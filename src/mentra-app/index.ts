@@ -24,6 +24,7 @@ import { takePhoto } from "./modules/photo";
 import { setupWebviewRoutes, broadcastTranscriptionToClients, registerSession, unregisterSession } from "./routes/routes";
 import { playAudio, speak } from "./modules/audio";
 import { setupTranscription } from "./modules/transcription";
+import { initializeUserTranscriptions, addTranscription, cleanupUserTranscriptions } from "./modules/transcription-storage";
 import * as path from "path";
 
 interface StoredPhoto {
@@ -125,6 +126,9 @@ class ExampleMentraOSApp extends AppServer {
   ): Promise<void> {
     this.logger.info(`Session started for user ${userId}`);
 
+    // Initialize transcription storage for this user
+    initializeUserTranscriptions(userId);
+
     // Register this session for audio playback from the frontend
     registerSession(userId, session);
 
@@ -140,6 +144,9 @@ class ExampleMentraOSApp extends AppServer {
         // Called when transcription is finalized
         this.logger.info(`[FINAL] Transcription for user ${userId}: ${finalText}`);
         console.log(`✅ Final transcription (user ${userId}): ${finalText}`);
+
+        // Store the final transcription
+        addTranscription(userId, finalText, true);
 
         // Broadcast final transcription to this user's SSE clients only
         broadcastTranscriptionToClients(finalText, true, userId);
@@ -176,6 +183,9 @@ class ExampleMentraOSApp extends AppServer {
 
     // Unregister the session
     unregisterSession(userId);
+
+    // Clean up transcription storage
+    cleanupUserTranscriptions(userId);
   }
 }
 

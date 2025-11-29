@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Camera, Play, Mic, Image, Zap, Terminal, Moon, Sun } from 'lucide-react';
+import { Camera, Play, Mic, Image, Zap, Terminal, Moon, Sun, Square, Sparkles, Trash2 } from 'lucide-react';
 
 interface Photo {
   id: string;
@@ -33,6 +33,10 @@ export default function Template({ isDark, setIsDark, userId }: TemplateProps) {
   const [logs, setLogs] = useState<Log[]>([]);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [speakText, setSpeakText] = useState('');
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordedCount, setRecordedCount] = useState(0);
+  const [summary, setSummary] = useState<string>('');
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const logIdCounter = useRef(Date.now());
 
   const addLog = useCallback((message: string) => {
@@ -295,6 +299,136 @@ export default function Template({ isDark, setIsDark, userId }: TemplateProps) {
     }
   };
 
+  const handleStartRecording = async () => {
+    try {
+      if (!userId || userId.trim() === '') {
+        addLog('Error: No user ID available. Please connect your glasses.');
+        return;
+      }
+
+      const response = await fetch('/api/transcription/start', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setIsRecording(true);
+        setSummary(''); // Clear previous summary
+        addLog('Started recording transcriptions');
+      } else {
+        addLog(`Error: ${data.error}`);
+      }
+    } catch (error) {
+      addLog(`Failed to start recording: ${error}`);
+    }
+  };
+
+  const handleStopRecording = async () => {
+    try {
+      const response = await fetch('/api/transcription/stop', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setIsRecording(false);
+        setRecordedCount(data.status.transcriptionCount);
+        addLog(`Stopped recording. Captured ${data.status.transcriptionCount} transcriptions`);
+      } else {
+        addLog(`Error: ${data.error}`);
+      }
+    } catch (error) {
+      addLog(`Failed to stop recording: ${error}`);
+    }
+  };
+
+  const handleGenerateSummary = async () => {
+    try {
+      setIsGeneratingSummary(true);
+      addLog('Generating summary with GPT-5...');
+
+      const response = await fetch('/api/transcription/summarize', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSummary(data.summary);
+        addLog(`Summary generated (${data.transcriptionCount} transcriptions)`);
+      } else {
+        addLog(`Error: ${data.error}`);
+      }
+    } catch (error) {
+      addLog(`Failed to generate summary: ${error}`);
+    } finally {
+      setIsGeneratingSummary(false);
+    }
+  };
+
+  const handleClearTranscriptions = async () => {
+    try {
+      const response = await fetch('/api/transcription/clear', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSummary('');
+        setRecordedCount(0);
+        addLog('Transcriptions cleared');
+      } else {
+        addLog(`Error: ${data.error}`);
+      }
+    } catch (error) {
+      addLog(`Failed to clear transcriptions: ${error}`);
+    }
+  };
+
+  // Poll for recording status
+  useEffect(() => {
+    const pollStatus = async () => {
+      try {
+        const response = await fetch(`/api/transcription/status?userId=${encodeURIComponent(userId)}`);
+        const data = await response.json();
+        
+        if (response.ok) {
+          setIsRecording(data.isRecording);
+          setRecordedCount(data.transcriptionCount);
+        }
+      } catch (error) {
+        // Silent fail for status polling
+      }
+    };
+
+    // Poll every 2 seconds
+    const interval = setInterval(pollStatus, 2000);
+    
+    // Initial poll
+    pollStatus();
+
+    return () => clearInterval(interval);
+  }, [userId]);
+
   return (
     <div className="relative p-6 space-y-6 max-w-7xl mx-auto">
       {/* Photos Section */}
@@ -447,6 +581,116 @@ export default function Template({ isDark, setIsDark, userId }: TemplateProps) {
           </div>
         </div>
       </div>
+
+      {/* Transcription Controls */}
+      <section className="relative rounded-xl backdrop-blur-xl overflow-hidden" style={{ background: 'var(--bg-card)' }}>
+        <div className="relative p-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg" style={{ background: 'var(--icon-bg-emerald)' }}>
+                <Mic className="w-3.5 h-3.5" style={{ color: 'var(--accent-emerald)' }} />
+              </div>
+              <div>
+                <h2 className="font-semibold text-base" style={{ color: 'var(--text-primary)' }}>Transcription Recording</h2>
+                <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>
+                  {isRecording ? `Recording... (${recordedCount} captured)` : 'Start recording to accumulate transcriptions'}
+                </p>
+              </div>
+            </div>
+            {isRecording && (
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: 'var(--accent-rose)' }}></div>
+                <span className="text-xs font-medium" style={{ color: 'var(--accent-rose)' }}>LIVE</span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {!isRecording ? (
+              <button
+                onClick={handleStartRecording}
+                className="flex-1 min-w-[150px] p-3 rounded-lg font-medium transition-all"
+                style={{
+                  background: 'linear-gradient(to bottom right, var(--accent-emerald), var(--accent-cyan))',
+                  color: 'white',
+                  cursor: 'pointer'
+                }}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <Mic className="w-4 h-4" />
+                  <span className="text-sm">Start Recording</span>
+                </div>
+              </button>
+            ) : (
+              <button
+                onClick={handleStopRecording}
+                className="flex-1 min-w-[150px] p-3 rounded-lg font-medium transition-all"
+                style={{
+                  background: 'linear-gradient(to bottom right, var(--accent-rose), var(--accent-purple))',
+                  color: 'white',
+                  cursor: 'pointer'
+                }}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <Square className="w-4 h-4 fill-current" />
+                  <span className="text-sm">Stop Recording</span>
+                </div>
+              </button>
+            )}
+
+            <button
+              onClick={handleGenerateSummary}
+              disabled={recordedCount === 0 || isGeneratingSummary}
+              className="flex-1 min-w-[150px] p-3 rounded-lg font-medium transition-all"
+              style={{
+                background: recordedCount > 0
+                  ? 'linear-gradient(to bottom right, var(--accent-purple), var(--accent-rose))'
+                  : 'var(--bg-input)',
+                color: recordedCount > 0 ? 'white' : 'var(--text-muted)',
+                cursor: recordedCount === 0 ? 'not-allowed' : 'pointer',
+                opacity: isGeneratingSummary ? 0.7 : 1
+              }}
+            >
+              <div className="flex items-center justify-center gap-2">
+                <Sparkles className={`w-4 h-4 ${isGeneratingSummary ? 'animate-pulse' : ''}`} />
+                <span className="text-sm">{isGeneratingSummary ? 'Generating...' : 'Summarize with GPT-5'}</span>
+              </div>
+            </button>
+
+            {recordedCount > 0 && (
+              <button
+                onClick={handleClearTranscriptions}
+                className="p-3 rounded-lg font-medium transition-all"
+                style={{
+                  background: 'var(--bg-input)',
+                  color: 'var(--accent-rose)',
+                  cursor: 'pointer'
+                }}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <Trash2 className="w-4 h-4" />
+                  <span className="text-sm">Clear</span>
+                </div>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Summary Display */}
+        {summary && (
+          <div className="relative px-4 pb-4">
+            <div className="p-4 rounded-lg" style={{ background: 'var(--bg-input)' }}>
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles className="w-4 h-4" style={{ color: 'var(--accent-purple)' }} />
+                <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>GPT-5 Summary</h3>
+              </div>
+              <div className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--text-primary)' }}>
+                {summary}
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
 
       {/* Transcriptions and Logs */}
       <div className="grid lg:grid-cols-2 gap-4">

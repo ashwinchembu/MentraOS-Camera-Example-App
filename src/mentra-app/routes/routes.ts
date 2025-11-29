@@ -24,6 +24,16 @@
 
 import { Express, Response } from 'express';
 import { getThemePreference, setThemePreference } from '../modules/simple-storage';
+import { 
+  startRecording, 
+  stopRecording, 
+  isRecording,
+  getTranscriptions, 
+  getCombinedTranscriptionText,
+  clearTranscriptions,
+  getRecordingStatus
+} from '../modules/transcription-storage';
+import { summarizeWithGPT5 } from '../modules/gpt-summarizer';
 
 // Store SSE clients with userId mapping
 interface SSEClient {
@@ -477,6 +487,165 @@ export function setupWebviewRoutes(
       base64: base64Data,
       dataUrl: `data:${photo.mimeType};base64,${base64Data}`
     });
+  });
+
+  // Route: Start recording transcriptions
+  app.post('/api/transcription/start', async (req: any, res: any) => {
+    try {
+      const { userId } = req.body;
+
+      if (!userId) {
+        res.status(400).json({ error: 'userId is required' });
+        return;
+      }
+
+      console.log(`[Transcription] Starting recording for user: ${userId}`);
+      startRecording(userId);
+
+      res.json({ 
+        success: true, 
+        message: 'Transcription recording started',
+        userId,
+        status: getRecordingStatus(userId)
+      });
+    } catch (error: any) {
+      console.error('Error starting transcription recording:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Route: Stop recording transcriptions
+  app.post('/api/transcription/stop', async (req: any, res: any) => {
+    try {
+      const { userId } = req.body;
+
+      if (!userId) {
+        res.status(400).json({ error: 'userId is required' });
+        return;
+      }
+
+      console.log(`[Transcription] Stopping recording for user: ${userId}`);
+      stopRecording(userId);
+
+      res.json({ 
+        success: true, 
+        message: 'Transcription recording stopped',
+        userId,
+        status: getRecordingStatus(userId)
+      });
+    } catch (error: any) {
+      console.error('Error stopping transcription recording:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Route: Get recording status
+  app.get('/api/transcription/status', (req: any, res: any) => {
+    try {
+      const userId = req.query.userId as string;
+
+      if (!userId) {
+        res.status(400).json({ error: 'userId is required' });
+        return;
+      }
+
+      const status = getRecordingStatus(userId);
+
+      res.json({ 
+        success: true,
+        userId,
+        ...status
+      });
+    } catch (error: any) {
+      console.error('Error getting transcription status:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Route: Get all transcriptions
+  app.get('/api/transcription/all', (req: any, res: any) => {
+    try {
+      const userId = req.query.userId as string;
+
+      if (!userId) {
+        res.status(400).json({ error: 'userId is required' });
+        return;
+      }
+
+      const transcriptions = getTranscriptions(userId);
+      const combinedText = getCombinedTranscriptionText(userId);
+
+      res.json({
+        success: true,
+        userId,
+        transcriptions,
+        combinedText,
+        count: transcriptions.length
+      });
+    } catch (error: any) {
+      console.error('Error getting transcriptions:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Route: Summarize transcriptions with GPT-5
+  app.post('/api/transcription/summarize', async (req: any, res: any) => {
+    try {
+      const { userId } = req.body;
+
+      if (!userId) {
+        res.status(400).json({ error: 'userId is required' });
+        return;
+      }
+
+      console.log(`[Transcription] Generating summary for user: ${userId}`);
+
+      const combinedText = getCombinedTranscriptionText(userId);
+      
+      if (!combinedText || combinedText.trim().length === 0) {
+        res.status(400).json({ error: 'No transcriptions available to summarize' });
+        return;
+      }
+
+      const summary = await summarizeWithGPT5(combinedText);
+      const status = getRecordingStatus(userId);
+
+      res.json({
+        success: true,
+        userId,
+        summary,
+        transcriptionCount: status.transcriptionCount,
+        originalLength: combinedText.length,
+        summaryLength: summary.length
+      });
+    } catch (error: any) {
+      console.error('Error summarizing transcriptions:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Route: Clear transcriptions
+  app.post('/api/transcription/clear', async (req: any, res: any) => {
+    try {
+      const { userId } = req.body;
+
+      if (!userId) {
+        res.status(400).json({ error: 'userId is required' });
+        return;
+      }
+
+      console.log(`[Transcription] Clearing transcriptions for user: ${userId}`);
+      clearTranscriptions(userId);
+
+      res.json({
+        success: true,
+        message: 'Transcriptions cleared',
+        userId
+      });
+    } catch (error: any) {
+      console.error('Error clearing transcriptions:', error);
+      res.status(500).json({ error: error.message });
+    }
   });
 
   // Note: The /webview EJS route has been removed.
